@@ -1,0 +1,161 @@
+[[
+
+  {	{
+
+    "id": 1,		"id": 1,
+
+    "title": "Review new room assets",		"title": "Review new room assets",
+
+    "description": "Inspect files in `public/room` and `public/room/birthday` to understand available base and birthday decorations.",		"description": "Inspect files in `public/room` and `public/room/birthday` to understand available base and birthday decorations.",
+
+    "status": "completed"		"status": "completed"
+
+  },			"status": "completed"
+
+  {	{
+
+    "id": 2,		"id": 2,
+
+    "title": "Update base artifacts",		"title": "Update base artifacts",
+
+    "description": "Map the default room artifacts to the new PNG assets (clock, plant, shelf, flag) and choose placements that fit the scene.",		"description": "Map the default room artifacts to the new PNG assets (clock, plant, shelf, flag) and choose placements that fit the scene.",
+
+    "status": "completed"		"status": "completed"
+
+  },			"status": "completed"
+
+  {	{
+
+    "id": 3,		"id": 3,
+
+    "title": "Add birthday decorations toggle",		"title": "Add birthday decorations toggle",
+
+    "description": "Introduce a UI switch that adds the birthday-specific artifacts when enabled and hides them otherwise.",		"description": "Introduce a UI switch that adds the birthday-specific artifacts when enabled and hides them otherwise.",
+
+    "status": "completed"		"status": "completed"
+
+  },			"status": "completed"
+
+  {	{
+
+    "id": 4,		"id": 4,
+
+    "title": "Style placements",		"title": "Style placements",
+
+    "description": "Adjust `roomArtifactPlacements` and related styles so both default and birthday assets appear in sensible positions.",		"description": "Adjust `roomArtifactPlacements` and related styles so both default and birthday assets appear in sensible positions.",
+
+    "status": "not-started"		[
+
+  },		  {
+
+  {		    "id": 1,
+
+    "id": 5,		    "title": "Review new room assets",
+
+    "title": "Verify in browser",		    "description": "Inspect files in `public/room` and `public/room/birthday` to understand available base and birthday decorations.",
+
+    "description": "Refresh the running dev server or provide instructions to confirm the toggle works and assets show up correctly.",		    "status": "completed"
+
+    "status": "not-started"		  },
+
+  },		  {
+
+  {		    "id": 2,
+
+    "id": 6,		    "title": "Update base artifacts",
+
+    "title": "Implement letter modal",		    "description": "Map the default room artifacts to the new PNG assets (clock, plant, shelf, flag) and choose placements that fit the scene.",
+
+    "description": "Create a modal component with a pixelated letter-paper background to display letter content.",		    "status": "completed"
+
+    "status": "completed"		  },
+
+  },		  {
+
+  {		    "id": 3,
+
+    "id": 7,		    "title": "Add birthday decorations toggle",
+
+    "title": "Add temporary toggle button",		    "description": "Introduce a UI switch that adds the birthday-specific artifacts when enabled and hides them otherwise.",
+
+    "description": "Wire a button in the UI that opens and closes the letter modal until the gift interaction is ready.",		    "status": "completed"
+
+    "status": "completed"		  },
+
+  },		  {
+
+  {		    "id": 4,
+
+    "id": 8,		    "title": "Style placements",
+
+    "title": "Style letter modal",		    "description": "Adjust `roomArtifactPlacements` and related styles so both default and birthday assets appear in sensible positions.",
+
+    "description": "Ensure the modal layout matches the café aesthetics, including pixel borders and readable typography.",		    "status": "not-started"
+
+    "status": "completed"		  },
+
+  },		  {
+
+  {		    "id": 5,
+
+    "id": 9,		    "title": "Verify in browser",
+
+    "title": "Lint after changes",		    "description": "Refresh the running dev server or provide instructions to confirm the toggle works and assets show up correctly.",
+
+    "description": "Run the project lint command to validate the new modal code.",		    "status": "not-started"
+
+    "status": "blocked",		  },
+
+    "note": "`npm run lint` launches the dev server; needs follow-up after current UI work."		  {
+
+  },		    "id": 6,
+
+  {		    "title": "Implement letter modal",
+
+    "id": 10,		    "description": "Create a modal component with a pixelated letter-paper background to display letter content.",
+
+    "title": "Decorate letter with hearts",		    "status": "completed"
+
+    "description": "Add pixel-style heart embellishments to the letter modal layout.",		  },
+
+    "status": "in-progress"		  {
+
+  },		    "id": 7,
+
+  {		    "title": "Add temporary toggle button",
+
+    "id": 11,		    "description": "Wire a button in the UI that opens and closes the letter modal until the gift interaction is ready.",
+
+    "title": "Create entry overlay",		    "status": "completed"
+
+    "description": "Implement a welcome overlay that covers the app on first visit with a dismiss control.",		  },
+
+    "status": "not-started"		  {
+
+  }		    "id": 8,
+
+]		    "title": "Style letter modal",
+
+		    "description": "Ensure the modal layout matches the café aesthetics, including pixel borders and readable typography.",
+		    "status": "completed"
+		  },
+		  {
+		    "id": 9,
+		    "title": "Lint after changes",
+		    "description": "Run the project lint command to validate the new modal code.",
+		    "status": "blocked",
+		    "note": "`npm run lint` currently launches dev server via Next.js script mismatch; needs investigation after current UI tasks."
+		  },
+		  {
+		    "id": 10,
+		    "title": "Decorate letter with hearts",
+		    "description": "Add pixel-style heart embellishments to the letter modal layout.",
+		    "status": "in-progress"
+		  },
+		  {
+		    "id": 11,
+		    "title": "Create entry overlay",
+		    "description": "Implement a welcome overlay that covers the app on first visit with a dismiss control.",
+		    "status": "not-started"
+		  }
+		]
