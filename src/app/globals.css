@@ -1227,9 +1227,9 @@ button:focus-visible,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
-  width: min(22rem, 90vw);
-  padding: 0.35rem 0.75rem;
+  gap: 0.45rem;
+  width: min(18rem, 82vw);
+  padding: 0.28rem 0.6rem;
   transform: translateX(-50%);
   pointer-events: none;
   z-index: 9;
@@ -1334,6 +1334,10 @@ button:focus-visible,
   left: var(--artifact-left, auto);
   width: var(--artifact-width, auto);
   height: var(--artifact-height, auto);
+  pointer-events: none;
+}
+
+.room-artifacts__clue-zone > * {
   pointer-events: auto;
 }
 
@@ -1501,6 +1505,26 @@ button:focus-visible,
 .room-artifacts__trigger:focus-visible .room-artifacts__asset {
   transform: translateY(-3px);
   filter: var(--artifact-shadow-hover);
+}
+
+.clue-popup {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.4rem);
+  transform: translate(-50%, 10px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  min-width: 8.5rem;
+  max-width: 11rem;
+  padding: 0.65rem 0.75rem 0.9rem;
+  border: 3px solid var(--cafe-deep);
+  border-radius: 0.75rem;
+  background: rgba(255, 249, 230, 0.96);
+  box-shadow: 0 6px 0 rgba(77, 59, 143, 0.45), inset 0 4px 0 rgba(255, 255, 255, 0.75);
+  color: var(--cafe-deep);
+  text-align: left;
+  transition: opacity 160ms ease, transform 200ms ease;
 }
 
 .clue-pill {
@@ -1981,16 +2005,16 @@ body.show-artifact-guides .room-artifacts__trigger::after {
 
 
 .cat-habitat__status-card {
-  font-size: 0.52rem;
+  font-size: 0.46rem;
   text-transform: uppercase;
-  letter-spacing: 0.26em;
+  letter-spacing: 0.24em;
 }
 
 .cat-habitat__status-hint {
-  font-size: 0.48rem;
+  font-size: 0.42rem;
   text-transform: uppercase;
-  letter-spacing: 0.28em;
-  color: rgba(77, 59, 143, 0.55);
+  letter-spacing: 0.26em;
+  color: rgba(77, 59, 143, 0.52);
 }
 
 @keyframes catMoodPulse {
