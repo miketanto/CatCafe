@@ -5,16 +5,27 @@ import { useQuest } from "@/context/QuestContext";
 import { CLUE_ID_TO_INDEX, CLUE_IDS, type ClueId } from "@/data/mysteryClues";
 
 const CLUE_GLYPHS = {
-  window: "✶",
-  plant: "☁︎",
-  toy: "ღ",
+  plant: "☘︎",
+  "frame-1": "✧",
+  "frame-2": "✶",
+  "frame-3": "❖",
+  window: "ღ",
+} satisfies Record<ClueId, string>;
+
+const CLUE_LOCATIONS = {
+  plant: "the ivy plant",
+  "frame-1": "the sleepy frame",
+  "frame-2": "the golden frame",
+  "frame-3": "the secret frame",
+  window: "the sunlit window",
 } satisfies Record<ClueId, string>;
 
 type MysteryCluesProps = {
   revealedClues: ClueId[];
+  isCollapsed?: boolean;
 };
 
-export function MysteryClues({ revealedClues }: MysteryCluesProps) {
+export function MysteryClues({ revealedClues, isCollapsed = false }: MysteryCluesProps) {
   const { status, claimBirthdaySurprise } = useQuest();
   const { steps, isSurpriseAvailable, isSurpriseClaimed } = status;
 
@@ -34,8 +45,21 @@ export function MysteryClues({ revealedClues }: MysteryCluesProps) {
 
   const allCluesFound = CLUE_IDS.every((id) => revealedClues.includes(id));
 
+  const livePoliteness = isCollapsed ? undefined : "polite";
+  const className = [
+    "mystery-clues",
+    isCollapsed ? "mystery-clues--collapsed" : null,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" ");
+
   return (
-    <aside className="mystery-clues" aria-live="polite">
+    <aside
+      id="mystery-clues-panel"
+      className={className}
+      aria-live={livePoliteness}
+      aria-hidden={isCollapsed}
+    >
       {activeClues.map(({ clueId, step }) => (
         <article
           key={step.id}
@@ -46,7 +70,7 @@ export function MysteryClues({ revealedClues }: MysteryCluesProps) {
           aria-label={
             step.isComplete
               ? `${step.label} clue solved`
-              : `Clue discovered in the ${clueId}`
+              : `Clue discovered in ${CLUE_LOCATIONS[clueId]}`
           }
         >
           <span className="mystery-clue__glyph" aria-hidden>

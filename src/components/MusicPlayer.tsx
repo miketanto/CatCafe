@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MUSIC_TRACKS } from "@/data/musicTracks";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { MUSIC_TRACKS, type MusicTrack } from "@/data/musicTracks";
 
 type MusicPlayerProps = {
   mood: string;
+  isBirthdayActive: boolean;
 };
 
 type ActiveNode = {
@@ -12,8 +13,23 @@ type ActiveNode = {
   gain: GainNode;
 };
 
-// MusicPlayer sketches a lightweight chiptune loop that can be swapped for custom audio later.
-export function MusicPlayer({ mood }: MusicPlayerProps) {
+const createLoopingAudio = (src: string) => {
+  const element = new Audio(src);
+  element.loop = true;
+  element.preload = "auto";
+  element.crossOrigin = "anonymous";
+  return element;
+};
+
+const BIRTHDAY_TRACK: MusicTrack = {
+  id: "birthday-loop",
+  label: "Birthday Surprise",
+  mood: "birthday",
+  duration: 0,
+  src: "/music/birthday.m4a",
+};
+
+export function MusicPlayer({ mood, isBirthdayActive }: MusicPlayerProps) {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(() => {
     const initialIndex = MUSIC_TRACKS.findIndex((track) => track.mood === mood);
     return initialIndex === -1 ? 0 : initialIndex;
@@ -26,14 +42,25 @@ export function MusicPlayer({ mood }: MusicPlayerProps) {
   const loopTimeoutRef = useRef<number | null>(null);
   const beatIntervalRef = useRef<number | null>(null);
   const isPlayingRef = useRef(false);
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  const audioTrackIdRef = useRef<string | null>(null);
 
-  const currentTrack = MUSIC_TRACKS[currentTrackIndex] ?? MUSIC_TRACKS[0];
+  const baseTrack = MUSIC_TRACKS[currentTrackIndex] ?? MUSIC_TRACKS[0];
+  const currentTrack = isBirthdayActive ? BIRTHDAY_TRACK : baseTrack;
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
   const stopActiveNodes = useCallback(() => {
+    const element = audioElementRef.current;
+    if (element) {
+      element.pause();
+      element.currentTime = 0;
+      audioElementRef.current = null;
+      audioTrackIdRef.current = null;
+    }
+
     const timeoutId = loopTimeoutRef.current;
     if (timeoutId !== null) {
       window.clearTimeout(timeoutId);
@@ -65,8 +92,32 @@ export function MusicPlayer({ mood }: MusicPlayerProps) {
       return;
     }
 
-    const track = MUSIC_TRACKS[currentTrackIndex] ?? MUSIC_TRACKS[0];
+    const fallbackTrack = MUSIC_TRACKS[currentTrackIndex] ?? MUSIC_TRACKS[0];
+    const track = isBirthdayActive ? BIRTHDAY_TRACK : fallbackTrack;
     if (!track) {
+      return;
+    }
+
+    stopActiveNodes();
+
+    if (track.src) {
+      let element = audioElementRef.current;
+      if (!element || audioTrackIdRef.current !== track.id) {
+        element = createLoopingAudio(track.src);
+        audioElementRef.current = element;
+        audioTrackIdRef.current = track.id;
+      }
+
+      try {
+        await element.play();
+      } catch {
+        setIsPlaying(false);
+      }
+      return;
+    }
+
+    const notes = track.notes;
+    if (!notes || notes.length === 0) {
       return;
     }
 
@@ -80,29 +131,29 @@ export function MusicPlayer({ mood }: MusicPlayerProps) {
       }
     }
 
-    if (context.state === "suspended") {
+    const audioContext = context;
+
+    if (audioContext.state === "suspended") {
       try {
-        await context.resume();
+        await audioContext.resume();
       } catch {
         return;
       }
     }
 
-    stopActiveNodes();
-
-    const startTime = context.currentTime + 0.05;
+    const startTime = audioContext.currentTime + 0.05;
     const newNodes: ActiveNode[] = [];
 
-    track.notes.forEach((note) => {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
+    notes.forEach((note) => {
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
 
       oscillator.type = note.type ?? "triangle";
       oscillator.frequency.setValueAtTime(note.frequency, startTime + note.time);
       gain.gain.setValueAtTime(note.gain ?? 0.12, startTime + note.time);
 
       oscillator.connect(gain);
-      gain.connect(context.destination);
+      gain.connect(audioContext.destination);
 
       oscillator.start(startTime + note.time);
       oscillator.stop(startTime + note.time + note.duration);
@@ -136,7 +187,7 @@ export function MusicPlayer({ mood }: MusicPlayerProps) {
       }
       void scheduleTrack();
     }, track.duration * 1000);
-  }, [currentTrackIndex, stopActiveNodes]);
+  }, [currentTrackIndex, isBirthdayActive, stopActiveNodes]);
 
   useEffect(() => {
     if (!isMoodLinked) {
@@ -187,6 +238,12 @@ export function MusicPlayer({ mood }: MusicPlayerProps) {
   }, [isPlaying, scheduleTrack, stopActiveNodes]);
 
   useEffect(() => {
+    if (isBirthdayActive && !isPlayingRef.current) {
+      setIsPlaying(true);
+    }
+  }, [isBirthdayActive]);
+
+  useEffect(() => {
     return () => {
       isPlayingRef.current = false;
       const intervalId = beatIntervalRef.current;
@@ -211,6 +268,9 @@ export function MusicPlayer({ mood }: MusicPlayerProps) {
   }, [stopActiveNodes]);
 
   const handlePrev = () => {
+    if (isBirthdayActive) {
+      return;
+    }
     setIsMoodLinked(false);
     setCurrentTrackIndex((index) =>
       (index - 1 + MUSIC_TRACKS.length) % MUSIC_TRACKS.length
@@ -218,6 +278,9 @@ export function MusicPlayer({ mood }: MusicPlayerProps) {
   };
 
   const handleNext = () => {
+    if (isBirthdayActive) {
+      return;
+    }
     setIsMoodLinked(false);
     setCurrentTrackIndex((index) => (index + 1) % MUSIC_TRACKS.length);
   };
@@ -229,6 +292,11 @@ export function MusicPlayer({ mood }: MusicPlayerProps) {
     }
 
     if (typeof window === "undefined") {
+      return;
+    }
+
+    if (currentTrack.src) {
+      setIsPlaying(true);
       return;
     }
 
@@ -279,6 +347,7 @@ export function MusicPlayer({ mood }: MusicPlayerProps) {
           type="button"
           onClick={handlePrev}
           className="music-player__button"
+          disabled={isBirthdayActive}
           aria-label="Previous track"
         >
           ◄
@@ -294,6 +363,7 @@ export function MusicPlayer({ mood }: MusicPlayerProps) {
           type="button"
           onClick={handleNext}
           className="music-player__button"
+          disabled={isBirthdayActive}
           aria-label="Next track"
         >
           ►

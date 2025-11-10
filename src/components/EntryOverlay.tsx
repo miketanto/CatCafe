@@ -42,7 +42,9 @@ export function EntryOverlay({ isOpen, onDismiss }: EntryOverlayProps) {
           Virtual Cat Café
         </h2>
         <p className="entry-overlay__body">
-          Slip into the pastel lounge, brew a sweet treat, and uncover the clues our feline host stashes around the room. A celebration is on the horizon—help the cat get ready.
+          I hope you enjoy this cat cafe I made for you!
+          You can bake! And... pet the cat! There are some cute surprises too!
+          With love, Michael.
         </p>
         <button type="button" className="entry-overlay__button" onClick={onDismiss}>
           Enter the Café

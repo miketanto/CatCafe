@@ -5,14 +5,14 @@ import { BakeModal } from "@/components/BakeModal";
 import { CatDisplay } from "@/components/CatDisplay";
 import { MusicPlayer } from "@/components/MusicPlayer";
 import { InventoryModal } from "@/components/InventoryModal";
-import { MysteryClues } from "@/components/MysteryClues";
+import { RecipeBookModal } from "@/components/RecipeBookModal";
 import {
   DEFAULT_CAT_REACTION,
   IDLE_CAT_REACTION,
   getReactionForTreat,
   type CatReaction,
 } from "@/data/catReactions";
-import type { TreatRecipe } from "@/data/treatRecipes";
+import { BIRTHDAY_SURPRISE_TREAT, type TreatRecipe } from "@/data/treatRecipes";
 import { useInventory } from "@/context/InventoryContext";
 import { useQuest } from "@/context/QuestContext";
 import { CLUE_IDS, type ClueId } from "@/data/mysteryClues";
@@ -54,10 +54,12 @@ const PETTING_REACTIONS: CatReaction[] = [
 export default function Home() {
   const [isBakeOpen, setIsBakeOpen] = useState(false);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isRecipeBookOpen, setIsRecipeBookOpen] = useState(false);
   const [catReaction, setCatReaction] = useState(DEFAULT_CAT_REACTION);
   const [catTreatName, setCatTreatName] = useState(DEFAULT_TREAT_LABEL);
   const [catAnimationKey, setCatAnimationKey] = useState(0);
   const [showBirthdayDecor, setShowBirthdayDecor] = useState(false);
+  const [isBirthdayWinkActive, setIsBirthdayWinkActive] = useState(false);
   const [isLetterOpen, setIsLetterOpen] = useState(false);
   const [showEntryOverlay, setShowEntryOverlay] = useState(() => {
     if (typeof window !== "undefined") {
@@ -65,11 +67,17 @@ export default function Home() {
     }
     return true;
   });
+  const [visibleClues, setVisibleClues] = useState<Record<ClueId, boolean>>(() =>
+    CLUE_IDS.reduce((accumulator, clueId) => {
+      accumulator[clueId] = false;
+      return accumulator;
+    }, {} as Record<ClueId, boolean>)
+  );
   const { markSeen } = useEntryOverlayState(() => {
     setShowEntryOverlay(false);
   });
-  const { items, feedTreat } = useInventory();
-  const { registerTreatFed } = useQuest();
+  const { items, feedTreat, addTreat } = useInventory();
+  const { status, registerTreatFed, claimBirthdaySurprise } = useQuest();
   const [discoveredClues, setDiscoveredClues] = useState<Record<ClueId, boolean>>(
     () =>
       CLUE_IDS.reduce((accumulator, clueId) => {
@@ -81,6 +89,28 @@ export default function Home() {
   const storedTreatCount = items.length;
   const idleTimeoutRef = useRef<number | null>(null);
   const petCycleIndexRef = useRef(PETTING_REACTIONS.length > 1 ? 1 : 0);
+  const birthdayWinkTimeoutRef = useRef<number | null>(null);
+
+  const clearBirthdayWinkTimeout = useCallback(() => {
+    if (birthdayWinkTimeoutRef.current !== null && typeof window !== "undefined") {
+      window.clearTimeout(birthdayWinkTimeoutRef.current);
+      birthdayWinkTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleBirthdayWink = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    clearBirthdayWinkTimeout();
+    setIsBirthdayWinkActive(false);
+
+    birthdayWinkTimeoutRef.current = window.setTimeout(() => {
+      setIsBirthdayWinkActive(true);
+      birthdayWinkTimeoutRef.current = null;
+    }, 12_000);
+  }, [clearBirthdayWinkTimeout]);
 
   const resetIdleTimer = useCallback(() => {
     if (typeof window === "undefined") {
@@ -116,10 +146,17 @@ export default function Home() {
     }, IDLE_TIMEOUT_MS);
   }, [setCatAnimationKey, setCatReaction, setCatTreatName]);
 
-  const revealedClues = useMemo(
-    () => CLUE_IDS.filter((clueId) => discoveredClues[clueId]),
-    [discoveredClues]
-  );
+  const handleDismissClue = useCallback((clueId: ClueId) => {
+    setVisibleClues((previous) => {
+      if (!previous[clueId]) {
+        return previous;
+      }
+      return {
+        ...previous,
+        [clueId]: false,
+      };
+    });
+  }, []);
 
   const handleRevealClue = useCallback((clueId: ClueId) => {
     setDiscoveredClues((previous) => {
@@ -131,11 +168,15 @@ export default function Home() {
         [clueId]: true,
       };
     });
+    setVisibleClues((previous) => ({
+      ...previous,
+      [clueId]: true,
+    }));
   }, []);
 
   const applyCatReaction = useCallback(
     (treat: TreatRecipe | null) => {
-      const { reaction, treatName } = getReactionForTreat(treat);
+  const { reaction, treatName } = getReactionForTreat(treat);
       setCatReaction(reaction);
       setCatTreatName(treat ? treatName : DEFAULT_TREAT_LABEL);
       setCatAnimationKey((previous) => previous + 1);
@@ -148,10 +189,57 @@ export default function Home() {
   const handleCatPet = useCallback(() => {
     const nextReaction = PETTING_REACTIONS[petCycleIndexRef.current] ?? DEFAULT_CAT_REACTION;
     petCycleIndexRef.current = (petCycleIndexRef.current + 1) % PETTING_REACTIONS.length;
-    setCatReaction(nextReaction);
+    setCatReaction((previous) => ({
+      ...previous,
+      sprite: nextReaction.sprite,
+      message: nextReaction.message,
+    }));
     setCatAnimationKey((previous) => previous + 1);
     resetIdleTimer();
   }, [resetIdleTimer, setCatAnimationKey, setCatReaction]);
+
+  const revealBirthdayDecor = useCallback(
+    (treat: TreatRecipe) => {
+      if (treat.key === BIRTHDAY_SURPRISE_TREAT.key) {
+        setShowBirthdayDecor(true);
+        scheduleBirthdayWink();
+      }
+    },
+    [scheduleBirthdayWink]
+  );
+
+  useEffect(() => {
+    if (!showBirthdayDecor) {
+      clearBirthdayWinkTimeout();
+      setIsBirthdayWinkActive(false);
+      return;
+    }
+
+    scheduleBirthdayWink();
+
+    return () => {
+      clearBirthdayWinkTimeout();
+    };
+  }, [showBirthdayDecor, clearBirthdayWinkTimeout, scheduleBirthdayWink]);
+
+  useEffect(() => {
+    return () => {
+      clearBirthdayWinkTimeout();
+    };
+  }, [clearBirthdayWinkTimeout]);
+
+  const catSprite = useMemo(() => {
+    if (isBirthdayWinkActive) {
+      return "/cats/Birthday_wink.png";
+    }
+
+    if (showBirthdayDecor) {
+      return "/cats/Happy_Bday.png";
+    }
+
+    return catReaction.sprite;
+  }, [catReaction.sprite, isBirthdayWinkActive, showBirthdayDecor]);
+
 
   const handleTreatDelivered = (inventoryId: string) => {
     const treat = feedTreat(inventoryId);
@@ -160,15 +248,31 @@ export default function Home() {
       return;
     }
 
+    if (treat.key === BIRTHDAY_SURPRISE_TREAT.key) {
+      addTreat(treat);
+    }
+
     applyCatReaction(treat);
     registerTreatFed(treat);
+    revealBirthdayDecor(treat);
   };
 
   const handleFeedFromModal = (treat: TreatRecipe) => {
+    if (treat.key === BIRTHDAY_SURPRISE_TREAT.key) {
+      addTreat(treat);
+    }
+
     applyCatReaction(treat);
     registerTreatFed(treat);
+    revealBirthdayDecor(treat);
     setIsBakeOpen(false);
   };
+
+  const handleHideBirthdayDecor = useCallback(() => {
+    clearBirthdayWinkTimeout();
+    setShowBirthdayDecor(false);
+    setIsBirthdayWinkActive(false);
+  }, [clearBirthdayWinkTimeout]);
 
   useEffect(() => {
     resetIdleTimer();
@@ -219,7 +323,6 @@ export default function Home() {
     <>
       <main className="room-scene text-[#4d3b8f]">
         <div className="room-wrapper">
-          {/* <MysteryClues revealedClues={revealedClues} /> */}
           <header className="room-header">
             <h1 className="room-title">Mia's Cat Café</h1>
           </header>
@@ -227,14 +330,22 @@ export default function Home() {
           <div className="room-body">
             <CatDisplay
               onDropTreat={handleTreatDelivered}
-              spriteSrc={catReaction.sprite}
+              spriteSrc={catSprite}
               mood={catReaction.mood}
               statusTreatName={catTreatName}
               animationKey={catAnimationKey}
               onRevealClue={handleRevealClue}
               discoveredClues={discoveredClues}
+              visibleClues={visibleClues}
+              onDismissClue={handleDismissClue}
+              questSteps={status.steps}
+              isSurpriseAvailable={status.isSurpriseAvailable}
+              isSurpriseClaimed={status.isSurpriseClaimed}
+              onClaimSurprise={claimBirthdaySurprise}
               showBirthdayDecor={showBirthdayDecor}
+              onHideBirthdayDecor={handleHideBirthdayDecor}
               onOpenLetter={() => setIsLetterOpen(true)}
+              onOpenRecipeBook={() => setIsRecipeBookOpen(true)}
               onPet={handleCatPet}
             />
           </div>
@@ -261,20 +372,9 @@ export default function Home() {
                 <span className="room-dock__mini-count">{storedTreatCount}</span>
               )}
             </button>
-            <button
-              type="button"
-              onClick={() => setShowBirthdayDecor((previous) => !previous)}
-              className={`room-dock__mini-button ${
-                showBirthdayDecor ? "room-dock__mini-button--active" : ""
-              }`}
-              aria-pressed={showBirthdayDecor}
-            >
-              <span aria-hidden>🎈</span>
-              <span>{showBirthdayDecor ? "Hide Party" : "Show Party"}</span>
-            </button>
           </div>
 
-          <MusicPlayer mood={catReaction.mood} />
+          <MusicPlayer mood={catReaction.mood} isBirthdayActive={showBirthdayDecor} />
         </footer>
       </main>
 
@@ -291,14 +391,14 @@ export default function Home() {
       <LetterModal
         isOpen={isLetterOpen}
         onClose={() => setIsLetterOpen(false)}
-        title="Courier's Note"
+        title="For my pookie :)"
         body={
           <>
-            <p>
-              A parcel arrived at dawn with a velvet ribbon and a note addressed to the café cat. The sender mentioned a celebration that is nearly ready, and asked that we keep the surprise safe until every clue is solved.
+           <p>
+             Happy Birthday my babyyy! I hope this little surprise could make this 22nd birthday a bit more special than it already is! 
             </p>
             <p>
-              When the time feels right, share this letter with our feline host—the gifts tucked away nearby will make far more sense.
+             I was thinking of how much you always want to go to cat cafes and also how much you want to bake and share ur treats! So I thought about how I can give u a little bit of both hehehe. I wish I could be there with you to actually take you to the cat place again.I love you and wish you the happiest birthday everrrr!!!  mwuah mwuahh
             </p>
           </>
         }
@@ -310,6 +410,10 @@ export default function Home() {
           markSeen();
           setShowEntryOverlay(false);
         }}
+      />
+      <RecipeBookModal
+        isOpen={isRecipeBookOpen}
+        onClose={() => setIsRecipeBookOpen(false)}
       />
     </>
   );

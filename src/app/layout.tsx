@@ -3,6 +3,7 @@ import { Press_Start_2P } from "next/font/google";
 import "./globals.css";
 import { InventoryProvider } from "@/context/InventoryContext";
 import { QuestProvider } from "@/context/QuestContext";
+import { RecipeUnlocksProvider } from "@/context/RecipeUnlocksContext";
 
 const pixelFont = Press_Start_2P({
   weight: "400",
@@ -25,9 +26,11 @@ export default function RootLayout({
       <body className={`${pixelFont.className} bg-[#fff9e6] text-[#4d3b8f]`}>
         <InventoryProvider>
           <QuestProvider>
-            <div className="flex min-h-dvh flex-col">
-              {children}
-            </div>
+            <RecipeUnlocksProvider>
+              <div className="flex min-h-dvh flex-col">
+                {children}
+              </div>
+            </RecipeUnlocksProvider>
           </QuestProvider>
         </InventoryProvider>
       </body>

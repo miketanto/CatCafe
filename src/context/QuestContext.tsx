@@ -9,48 +9,132 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import type { TreatRecipe } from "@/data/treatRecipes";
-import { BIRTHDAY_SURPRISE_TREAT } from "@/data/treatRecipes";
 import { useInventory } from "@/context/InventoryContext";
+import {
+  BAKEABLE_TREATS,
+  BIRTHDAY_SURPRISE_TREAT,
+  getTreatByKey,
+  toIngredientKey,
+  type TreatRecipe,
+} from "@/data/treatRecipes";
+import { CLUE_IDS, type ClueId } from "@/data/mysteryClues";
 
-const STORAGE_KEY = "virtual-cat-cafe.quest.birthday.v1";
+const STORAGE_KEY = "virtual-cat-cafe.quest.birthday.v2";
+const LEGACY_STORAGE_KEYS = ["virtual-cat-cafe.quest.birthday.v1"] as const;
 
-const REQUIRED_TREATS = [
+type ClueRequirement = {
+  id: string;
+  clueId: ClueId;
+  placeholderLabel: string;
+  subtitle: string;
+  treatCombos: string[][];
+};
+
+type NormalizedClueRequirement = ClueRequirement & {
+  treatKeys: string[];
+};
+
+const RAW_CLUE_REQUIREMENTS: ClueRequirement[] = [
   {
-    id: "honeyed-fish-bites",
-    treatName: "Honeyed Fish Bites",
-    hint: "Where shoreline brine meets sunlit nectar, a milk bottle clinks softly.",
+    id: "clue-plant-snack",
+    clueId: "plant",
+    placeholderLabel: "Plant Riddle Solved",
+    subtitle: "Kitty loves a snack that mixes things Mia eats for lunch and something that hurts her",
+    treatCombos: [
+      ["milk", "fish"],
+      ["milk", "fish", "honey"],
+    ],
   },
   {
-    id: "fluffy-catnip-scones",
-    treatName: "Fluffy Catnip Scones",
-    hint: "Press meadow sparkles into buttered clouds; a catnip breeze shows the way.",
+    id: "clue-frame-one",
+    clueId: "frame-1",
+    placeholderLabel: "Sleepy Frame Secret",
+    subtitle: "Make Kitty a high carb and rich treat that'll make her sleepy just like Mia :)",
+    treatCombos: [
+      ["flour", "butter", "catnip"],
+      ["flour", "catnip"],
+    ],
   },
   {
-    id: "sweet-milkbread-twist",
-    treatName: "Sweet Milkbread Twist",
-    hint: "Braid the dawnlight with a silky pour and two scoops of molten gold.",
+    id: "clue-frame-two",
+    clueId: "frame-2",
+    placeholderLabel: "Golden Gallery Wish",
+    subtitle: "Make Kitty something golden just like how the sun shines on Mia",
+    treatCombos: [
+      ["flour", "butter", "honey"],
+      ["butter", "fish", "honey"],
+      ["butter", "honey"],
+    ],
   },
-] as const;
+  {
+    id: "clue-frame-three",
+    clueId: "frame-3",
+    placeholderLabel: "Shared Kitchen Dream",
+    subtitle: "Kitty overheard the conversation the other day of what Mia wants to bake together!",
+    treatCombos: [
+      ["milk", "flour", "cream"],
+      ["milk", "butter"],
+    ],
+  },
+  {
+    id: "clue-window-energy",
+    clueId: "window",
+    placeholderLabel: "Sunlit Hype",
+    subtitle: "Kitty wants something that will get her hype! Not for Mia because it'll send her to toilet",
+    treatCombos: [
+      ["milk", "butter", "catnip"],
+      ["milk", "flour", "catnip"],
+    ],
+  },
+];
 
-type RequiredTreatName = (typeof REQUIRED_TREATS)[number]["treatName"];
+const CLUE_REQUIREMENTS: NormalizedClueRequirement[] = RAW_CLUE_REQUIREMENTS.map((entry) => {
+  const treatKeys = entry.treatCombos.map((combo) => toIngredientKey(combo));
+  return { ...entry, treatKeys };
+});
 
-const BASE_TREAT_STATE: Record<RequiredTreatName, boolean> = REQUIRED_TREATS.reduce(
-  (accumulator, entry) => {
-    accumulator[entry.treatName] = false;
+const TREAT_KEY_TO_CLUE_IDS = CLUE_REQUIREMENTS.reduce<Map<string, ClueId[]>>(
+  (accumulator, requirement) => {
+    requirement.treatKeys.forEach((key) => {
+      const existing = accumulator.get(key);
+      if (existing) {
+        if (!existing.includes(requirement.clueId)) {
+          existing.push(requirement.clueId);
+        }
+      } else {
+        accumulator.set(key, [requirement.clueId]);
+      }
+    });
     return accumulator;
   },
-  {} as Record<RequiredTreatName, boolean>
+  new Map<string, ClueId[]>()
 );
 
-type QuestStatusStep = {
+const BASE_CLUE_PROGRESS: Record<ClueId, string | null> = CLUE_IDS.reduce(
+  (accumulator, clueId) => {
+    accumulator[clueId] = null;
+    return accumulator;
+  },
+  {} as Record<ClueId, string | null>
+);
+
+const TREAT_NAME_TO_KEY = BAKEABLE_TREATS.reduce<Record<string, string>>(
+  (accumulator, treat) => {
+    accumulator[treat.name] = treat.key;
+    return accumulator;
+  },
+  {}
+);
+
+export type QuestStatusStep = {
   id: string;
   label: string;
   subtitle: string;
   isComplete: boolean;
+  treatKey: string | null;
 };
 
-type QuestStatus = {
+export type QuestStatus = {
   title: string;
   intro: string;
   steps: QuestStatusStep[];
@@ -69,27 +153,76 @@ type QuestContextValue = {
 const QuestContext = createContext<QuestContextValue | undefined>(undefined);
 
 type PersistedQuestState = {
-  completedTreats: Record<string, boolean>;
+  clueTreatKeys: Record<ClueId, string | null>;
   surpriseUnlockedAt: number | null;
   isSurpriseClaimed: boolean;
 };
 
-function mapToState(record: Record<string, boolean> | undefined) {
-  return {
-    ...BASE_TREAT_STATE,
-    ...Object.fromEntries(
-      Object.entries(record ?? {}).filter(([key]) =>
-        Object.prototype.hasOwnProperty.call(BASE_TREAT_STATE, key)
-      )
-    ),
-  } satisfies Record<RequiredTreatName, boolean>;
+type LegacyPersistedQuestState = {
+  completedTreats?: Record<string, boolean>;
+  surpriseUnlockedAt?: number | null;
+  isSurpriseClaimed?: boolean;
+};
+
+function normalizeClueTreats(record: Record<string, unknown> | undefined) {
+  const base: Record<ClueId, string | null> = { ...BASE_CLUE_PROGRESS };
+  if (!record) {
+    return base;
+  }
+
+  for (const clueId of CLUE_IDS) {
+    const value = record[clueId];
+    if (typeof value === "string" && value.length > 0) {
+      base[clueId] = value;
+    }
+  }
+
+  if (!base.window) {
+    const toyValue = record["toy"];
+    if (typeof toyValue === "string" && toyValue.length > 0) {
+      base.window = toyValue;
+    }
+  }
+
+  return base;
+}
+
+function migrateLegacyTreats(record: Record<string, boolean> | undefined) {
+  const base: Record<ClueId, string | null> = { ...BASE_CLUE_PROGRESS };
+  if (!record) {
+    return base;
+  }
+
+  Object.entries(record).forEach(([treatName, isComplete]) => {
+    if (!isComplete) {
+      return;
+    }
+
+    const treatKey = TREAT_NAME_TO_KEY[treatName];
+    if (!treatKey) {
+      return;
+    }
+
+    const clueIds = TREAT_KEY_TO_CLUE_IDS.get(treatKey);
+    if (!clueIds) {
+      return;
+    }
+
+    clueIds.forEach((clueId) => {
+      if (!base[clueId]) {
+        base[clueId] = treatKey;
+      }
+    });
+  });
+
+  return base;
 }
 
 export function QuestProvider({ children }: { children: ReactNode }) {
   const { addTreat } = useInventory();
   const [completedTreats, setCompletedTreats] = useState<
-    Record<RequiredTreatName, boolean>
-  >(BASE_TREAT_STATE);
+    Record<ClueId, string | null>
+  >(() => ({ ...BASE_CLUE_PROGRESS }));
   const [surpriseUnlockedAt, setSurpriseUnlockedAt] = useState<number | null>(
     null
   );
@@ -101,19 +234,41 @@ export function QuestProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    try {
+    const loadState = () => {
       const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (!stored) {
-        setHasLoaded(true);
-        return;
+      if (stored) {
+        const parsed = JSON.parse(stored) as PersistedQuestState;
+        setCompletedTreats(normalizeClueTreats(parsed?.clueTreatKeys));
+        setSurpriseUnlockedAt(parsed?.surpriseUnlockedAt ?? null);
+        setIsSurpriseClaimed(Boolean(parsed?.isSurpriseClaimed));
+        return true;
       }
 
-      const parsed = JSON.parse(stored) as PersistedQuestState;
-      setCompletedTreats(mapToState(parsed?.completedTreats));
-      setSurpriseUnlockedAt(parsed?.surpriseUnlockedAt ?? null);
-      setIsSurpriseClaimed(Boolean(parsed?.isSurpriseClaimed));
+      for (const legacyKey of LEGACY_STORAGE_KEYS) {
+        const legacyStored = window.localStorage.getItem(legacyKey);
+        if (!legacyStored) {
+          continue;
+        }
+
+        const parsedLegacy = JSON.parse(legacyStored) as LegacyPersistedQuestState;
+        setCompletedTreats(migrateLegacyTreats(parsedLegacy?.completedTreats));
+        setSurpriseUnlockedAt(parsedLegacy?.surpriseUnlockedAt ?? null);
+        setIsSurpriseClaimed(Boolean(parsedLegacy?.isSurpriseClaimed));
+        return true;
+      }
+
+      return false;
+    };
+
+    try {
+      const didLoad = loadState();
+      if (!didLoad) {
+        setCompletedTreats({ ...BASE_CLUE_PROGRESS });
+        setSurpriseUnlockedAt(null);
+        setIsSurpriseClaimed(false);
+      }
     } catch {
-      setCompletedTreats(BASE_TREAT_STATE);
+      setCompletedTreats({ ...BASE_CLUE_PROGRESS });
       setSurpriseUnlockedAt(null);
       setIsSurpriseClaimed(false);
     } finally {
@@ -127,7 +282,7 @@ export function QuestProvider({ children }: { children: ReactNode }) {
     }
 
     const payload: PersistedQuestState = {
-      completedTreats,
+      clueTreatKeys: completedTreats,
       surpriseUnlockedAt,
       isSurpriseClaimed,
     };
@@ -136,19 +291,23 @@ export function QuestProvider({ children }: { children: ReactNode }) {
   }, [completedTreats, hasLoaded, isSurpriseClaimed, surpriseUnlockedAt]);
 
   const registerTreatBaked = useCallback((treat: TreatRecipe) => {
-    if (!REQUIRED_TREATS.some((entry) => entry.treatName === treat.name)) {
+    const clueIds = TREAT_KEY_TO_CLUE_IDS.get(treat.key);
+    if (!clueIds?.length) {
       return;
     }
 
     setCompletedTreats((previous) => {
-      if (previous[treat.name as RequiredTreatName]) {
-        return previous;
-      }
+      let didUpdate = false;
+      const next = { ...previous };
 
-      return {
-        ...previous,
-        [treat.name as RequiredTreatName]: true,
-      };
+      clueIds.forEach((clueId) => {
+        if (!next[clueId]) {
+          next[clueId] = treat.key;
+          didUpdate = true;
+        }
+      });
+
+      return didUpdate ? next : previous;
     });
   }, []);
 
@@ -160,15 +319,24 @@ export function QuestProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const allStepsComplete = useMemo(
-    () => REQUIRED_TREATS.every((entry) => completedTreats[entry.treatName]),
+    () => CLUE_IDS.every((clueId) => Boolean(completedTreats[clueId])),
     [completedTreats]
   );
 
   useEffect(() => {
-    if (allStepsComplete && surpriseUnlockedAt === null) {
+    if (!allStepsComplete) {
+      return;
+    }
+
+    if (surpriseUnlockedAt === null) {
       setSurpriseUnlockedAt(Date.now());
     }
-  }, [allStepsComplete, surpriseUnlockedAt]);
+
+    if (!isSurpriseClaimed) {
+      addTreat(BIRTHDAY_SURPRISE_TREAT);
+      setIsSurpriseClaimed(true);
+    }
+  }, [addTreat, allStepsComplete, isSurpriseClaimed, surpriseUnlockedAt]);
 
   const isSurpriseAvailable = surpriseUnlockedAt !== null;
 
@@ -182,17 +350,27 @@ export function QuestProvider({ children }: { children: ReactNode }) {
   }, [addTreat, isSurpriseAvailable, isSurpriseClaimed]);
 
   const status = useMemo<QuestStatus>(() => {
-    const steps: QuestStatusStep[] = REQUIRED_TREATS.map((entry) => ({
-      id: entry.id,
-      label: entry.treatName,
-      subtitle: entry.hint,
-      isComplete: completedTreats[entry.treatName],
-    }));
+    const steps: QuestStatusStep[] = CLUE_REQUIREMENTS.map((requirement) => {
+      const treatKey = completedTreats[requirement.clueId];
+      const treat = treatKey ? getTreatByKey(treatKey) : null;
+      const isComplete = Boolean(treat);
+      const subtitle = isComplete
+        ? `Solution: ${treat!.name}`
+        : requirement.subtitle;
+
+      return {
+        id: requirement.id,
+        label: treat ? treat.name : requirement.placeholderLabel,
+        subtitle,
+        isComplete,
+        treatKey: treatKey ?? null,
+      };
+    });
 
     return {
       title: "Birthday Surprise Quest",
       intro:
-        "Three whispered riddles hide in the café. Decode them to spring a birthday surprise.",
+        "Five whispered riddles hide in the café. Decode them to spring a birthday surprise.",
       steps,
       isComplete: allStepsComplete,
       isSurpriseAvailable,

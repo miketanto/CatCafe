@@ -39,11 +39,77 @@ const rawTreatMap: Record<string, Omit<TreatRecipe, "key">> = {
     description:
       "Light, buttery scones infused with a hint of catnip. Purrfect for afternoon tea.",
   },
+  "flour+catnip": {
+    name: "Catnip Cloud Crisps",
+    sprite: "/treats/fluffy_catnip_scones.png",
+    description:
+      "Delicate crisps dusted with meadow catnip, baked light enough to lull any kitty into a purr.",
+  },
   "milk+butter+honey": {
     name: "Sweet Milkbread Twist",
     sprite: "/treats/sweet_milkbread_twist.png",
     description:
       "A soft, braided milk bread, drizzled with sweet honey butter. Comfort in every bite.",
+  },
+  "milk+flour+cream": {
+    name: "Cream Puff Pastry",
+    sprite: "/treats/cream_puff_pastry.png",
+    description:
+      "A delicate puff filled with sweet cream. Light as air and twice as dreamy.",
+  },
+  "honey+catnip": {
+    name: "Golden Catnip Drops",
+    sprite: "/treats/golden_catnip_drops.png",
+    description:
+      "Tiny honey-glazed treats that sparkle with catnip magic. Instant feline fascination!",
+  },
+  "flour+fish": {
+    name: "Savory Fish Crackers",
+    sprite: "/treats/savory_fish_crackers.png",
+    description:
+      "Crisp, salty crackers baked with tender fish flakes. Perfect for sophisticated snackers.",
+  },
+  "milk+butter": {
+    name: "Velvet Cream Cookies",
+    sprite: "/treats/velvet_cream_cookies.png",
+    description:
+      "Soft, melt-in-your-mouth cookies with a buttery milk glaze. Simple, smooth, and irresistible.",
+  },
+  "butter+honey": {
+    name: "Honey Butter Biscuits",
+    sprite: "/treats/honey_butter_biscuits.png",
+    description:
+      "Golden biscuits infused with sweet honey butter. A comforting crunch in every bite.",
+  },
+  "flour+milk+catnip": {
+    name: "Whisker Waffles",
+    sprite: "/treats/whisker_waffles.png",
+    description:
+      "Fluffy catnip-scented waffles drizzled with warm milk glaze. Breakfast for champions.",
+  },
+  "butter+fish+honey": {
+    name: "Golden Fish Pie",
+    sprite: "/treats/golden_fish_pie.png",
+    description:
+      "A flaky golden pie filled with sweet-salty fish filling and a honey-brushed crust.",
+  },
+  "milk+flour+honey": {
+    name: "Sweet Cream Muffins",
+    sprite: "/treats/sweet_cream_muffins.png",
+    description:
+      "Soft muffins bursting with honey sweetness and creamy richness. Best served warm!",
+  },
+  "flour+butter+honey": {
+    name: "Golden Shortbread",
+    sprite: "/treats/golden_shortbread.png",
+    description:
+      "Buttery, crumbly cookies kissed with honey. A timeless teatime treasure.",
+  },
+  "milk+butter+catnip": {
+    name: "Dreamy Catnip Custard",
+    sprite: "/treats/dreamy_custard.png",
+    description:
+      "A smooth custard with a playful catnip aroma. Silky, soothing, and a little mischievous.",
   },
 };
 
@@ -59,7 +125,7 @@ const fallbackTreat: TreatRecipe = {
 export const BIRTHDAY_SURPRISE_TREAT: TreatRecipe = {
   key: "birthday-surprise-cake",
   name: "Birthday Surprise Cake",
-  sprite: "/treats/birthday_surprise_cake.png",
+  sprite: "/treats/birthday_surprise.png",
   description:
     "A towering confetti cake layered with honey glaze and shimmering catnip icing.",
 };
@@ -78,6 +144,9 @@ const treatMap: Record<string, TreatRecipe> = Object.entries(rawTreatMap).reduce
   },
   {} as Record<string, TreatRecipe>
 );
+
+export const BAKEABLE_TREATS: TreatRecipe[] = Object.values(treatMap);
+export const BAKEABLE_TREAT_KEYS: string[] = BAKEABLE_TREATS.map((treat) => treat.key);
 
 const treatLookup: Record<string, TreatRecipe> = {
   ...treatMap,

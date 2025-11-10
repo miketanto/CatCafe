@@ -15,6 +15,7 @@ import {
 } from "@/data/treatRecipes";
 import { useInventory } from "@/context/InventoryContext";
 import { useQuest } from "@/context/QuestContext";
+import { useRecipeUnlocks } from "@/context/RecipeUnlocksContext";
 
 type Ingredient = {
   id: string;
@@ -53,6 +54,7 @@ export function BakeModal({ isOpen, onClose, onFeedTreat }: BakeModalProps) {
   const bakeTimeoutRef = useRef<number | null>(null);
   const { addTreat } = useInventory();
   const { registerTreatBaked } = useQuest();
+  const { unlockTreat } = useRecipeUnlocks();
 
   useEffect(() => {
     return () => {
@@ -113,11 +115,19 @@ export function BakeModal({ isOpen, onClose, onFeedTreat }: BakeModalProps) {
       setHasStoredResult(false);
     }
 
-    setSelection((prevSelection) =>
-      prevSelection.includes(ingredientId)
-        ? prevSelection.filter((id) => id !== ingredientId)
-        : [...prevSelection, ingredientId]
-    );
+    setSelection((prevSelection) => {
+      const isSelected = prevSelection.includes(ingredientId);
+
+      if (isSelected) {
+        return prevSelection.filter((id) => id !== ingredientId);
+      }
+
+      if (prevSelection.length >= 3) {
+        return prevSelection;
+      }
+
+      return [...prevSelection, ingredientId];
+    });
   };
 
   const selectedIngredients = useMemo(
@@ -130,7 +140,11 @@ export function BakeModal({ isOpen, onClose, onFeedTreat }: BakeModalProps) {
     : "No ingredients yet";
 
   const handleMixAndBake = () => {
-    if (selection.length === 0 || phase === "processing") {
+    if (phase === "processing") {
+      return;
+    }
+
+    if (selection.length < 2 || selection.length > 3) {
       return;
     }
 
@@ -147,6 +161,9 @@ export function BakeModal({ isOpen, onClose, onFeedTreat }: BakeModalProps) {
       setTreatResult(treat);
       setPhase("result");
       registerTreatBaked(treat);
+      if (!treat.isMystery) {
+        unlockTreat(treat.key);
+      }
       bakeTimeoutRef.current = null;
     }, BAKE_DELAY_MS);
   };
@@ -259,14 +276,14 @@ export function BakeModal({ isOpen, onClose, onFeedTreat }: BakeModalProps) {
               <button
                 type="button"
                 onClick={handleMixAndBake}
-                disabled={selection.length === 0}
+                disabled={selection.length < 2 || selection.length > 3}
                 className="pixel-button inline-flex w-full items-center justify-center gap-3 px-5 py-3 text-[0.55rem] uppercase tracking-[0.35em] text-[#4d3b8f] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <span>Mix & Bake</span>
                 <span aria-hidden>🍰</span>
               </button>
               <p className="w-full text-center text-[0.45rem] uppercase tracking-[0.3em] opacity-60">
-                Store finished treats from the result screen to feed your cat later.
+                Choose 2 or 3 ingredients. Store finished treats from the result screen to feed your cat later.
               </p>
             </div>
           </div>

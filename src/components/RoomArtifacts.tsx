@@ -1,18 +1,27 @@
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { getArtifactsForMood } from "@/data/roomArtifacts";
-import { CLUE_IDS, type ClueId } from "@/data/mysteryClues";
+import {
+  CLUE_ID_TO_INDEX,
+  OVERLAY_CLUE_IDS,
+  type ClueId,
+  type FrameClueId,
+  type OverlayClueId,
+} from "@/data/mysteryClues";
 import {
   ROOM_ARTIFACT_PLACEMENTS,
   STATIC_ARTIFACT_PLACEMENTS,
   BIRTHDAY_ARTIFACT_PLACEMENTS,
+  BIRTHDAY_UI_PLACEMENTS,
   type ArtifactPlacement,
   type BirthdayArtifactId,
   type StaticArtifactId,
 } from "@/data/roomArtifactPlacements";
 import { FrameGalleryModal } from "@/components/FrameGalleryModal";
 import { FRAME_IDS, type FrameId } from "@/data/frameGalleries";
+import type { QuestStatusStep } from "@/context/QuestContext";
+import { getTreatByKey } from "@/data/treatRecipes";
 
 type RoomArtifactsProps = {
   mood: string;
@@ -20,29 +29,48 @@ type RoomArtifactsProps = {
   animationKey: number;
   onRevealClue?: (clueId: ClueId) => void;
   discoveredClues?: Partial<Record<ClueId, boolean>>;
+  visibleClues?: Partial<Record<ClueId, boolean>>;
+  onDismissClue?: (clueId: ClueId) => void;
+  questSteps?: QuestStatusStep[];
+  isSurpriseAvailable?: boolean;
+  isSurpriseClaimed?: boolean;
+  onClaimSurprise?: () => void;
   showBirthdayDecor: boolean;
+  onHideBirthdayDecor?: () => void;
   onOpenLetter?: () => void;
+  onOpenRecipeBook?: () => void;
 };
 
-const CLUE_ALT_TEXT: Record<ClueId, string> = {
-  window: "Antique wall clock ticking softly",
+const CLUE_ALT_TEXT: Record<OverlayClueId, string> = {
   plant: "Trailing ivy plant in a pastel pot",
-  toy: "Pastel pennant garland",
+  window: "Sunlit window with an antique café clock",
 };
 
-const CLUE_ARIA_LABEL: Record<ClueId, string> = {
-  window: "Inspect the wall clock",
+const CLUE_ARIA_LABEL: Record<OverlayClueId, string> = {
   plant: "Inspect the ivy plant",
-  toy: "Inspect the pennant garland",
+  window: "Inspect the sunlit window",
 };
 
-const CLUE_DIMENSIONS: Record<ClueId, { width: number; height: number }> = {
-  window: { width: 190, height: 193 },
+const CLUE_DIMENSIONS: Record<OverlayClueId, { width: number; height: number }> = {
   plant: { width: 200, height: 358 },
-  toy: { width: 322, height: 450 },
+  window: { width: 190, height: 193 },
 };
 
-const STATIC_ARTIFACT_IDS: StaticArtifactId[] = ["frame-1", "frame-2", "frame-3", "letter", "shelf"];
+const CLUE_GLYPHS: Record<ClueId, string> = {
+  plant: "☘︎",
+  "frame-1": "✧",
+  "frame-2": "✶",
+  "frame-3": "❖",
+  window: "ღ",
+};
+
+const FRAME_TO_CLUE: Record<FrameId, FrameClueId> = {
+  "frame-1": "frame-1",
+  "frame-2": "frame-2",
+  "frame-3": "frame-3",
+};
+
+const STATIC_ARTIFACT_IDS: StaticArtifactId[] = ["frame-1", "frame-2", "frame-3", "letter", "shelf", "toy"];
 
 const STATIC_DECOR: Record<StaticArtifactId, { src: string; alt: string; width: number; height: number }> = {
   "frame-1": {
@@ -74,6 +102,12 @@ const STATIC_DECOR: Record<StaticArtifactId, { src: string; alt: string; width: 
     alt: "Wall shelf stacked with pastel bowls and plants",
     width: 318,
     height: 457,
+  },
+  toy: {
+    src: "/room/Flag_crop.png",
+    alt: "Pastel pennant garland",
+    width: 322,
+    height: 450,
   },
 };
 
@@ -140,8 +174,16 @@ export function RoomArtifacts({
   animationKey,
   onRevealClue,
   discoveredClues,
+  visibleClues,
+  onDismissClue,
+  questSteps,
+  isSurpriseAvailable,
+  isSurpriseClaimed,
+  onClaimSurprise,
   showBirthdayDecor,
+  onHideBirthdayDecor,
   onOpenLetter,
+  onOpenRecipeBook,
 }: RoomArtifactsProps) {
   const artifacts = useMemo(() => getArtifactsForMood(mood), [mood]);
   const variantKey = `${mood}-${animationKey}`;
@@ -153,6 +195,16 @@ export function RoomArtifacts({
     .join(" ");
   const [activeFrame, setActiveFrame] = useState<FrameId | null>(null);
   const [isPresentOpened, setIsPresentOpened] = useState(false);
+  const [isSurprisePillCollapsed, setIsSurprisePillCollapsed] = useState(false);
+  const isQuestComplete = useMemo(
+    () => questSteps?.every((step) => step.isComplete) ?? false,
+    [questSteps]
+  );
+  const shouldShowStoredDialogBase = useMemo(
+    () => isSurpriseClaimed || isQuestComplete,
+    [isQuestComplete, isSurpriseClaimed]
+  );
+  const previousShouldShowRef = useRef(false);
 
   useEffect(() => {
     if (!showBirthdayDecor) {
@@ -160,40 +212,112 @@ export function RoomArtifacts({
     }
   }, [showBirthdayDecor]);
 
+  useEffect(() => {
+    if (shouldShowStoredDialogBase && !previousShouldShowRef.current) {
+      setIsSurprisePillCollapsed(false);
+    }
+
+    if (!shouldShowStoredDialogBase) {
+      setIsSurprisePillCollapsed(false);
+    }
+
+    previousShouldShowRef.current = shouldShowStoredDialogBase;
+  }, [shouldShowStoredDialogBase]);
+
+  useEffect(() => {
+    if (showBirthdayDecor) {
+      setIsSurprisePillCollapsed(true);
+    }
+  }, [showBirthdayDecor]);
+
+  const activeFrameClueId: FrameClueId | null = activeFrame ? FRAME_TO_CLUE[activeFrame] : null;
+  const activeFrameStep = activeFrameClueId
+    ? questSteps?.[CLUE_ID_TO_INDEX[activeFrameClueId]]
+    : undefined;
+  const activeFrameSolved = Boolean(activeFrameStep?.isComplete);
+  const activeFrameClueSubtitle = activeFrameStep?.subtitle;
+  const activeFrameTreatName = (() => {
+    const treatKey = activeFrameStep?.treatKey;
+    if (!treatKey) {
+      return null;
+    }
+    return getTreatByKey(treatKey)?.name ?? null;
+  })();
+
+  const shouldRenderStatusPill = shouldShowStoredDialogBase && !isSurprisePillCollapsed;
+  const statusPillStyle = buildPlacementStyle(BIRTHDAY_UI_PLACEMENTS["birthday-status-pill"]);
+  const shouldRenderReturnPill = showBirthdayDecor && isSurpriseClaimed && Boolean(onHideBirthdayDecor);
+  const returnPillStyle = buildPlacementStyle(BIRTHDAY_UI_PLACEMENTS["birthday-return-pill"]);
+
   return (
     <>
       <div className={containerClassName} data-variant={variantKey}>
-        {CLUE_IDS.map((clueId, index) => {
-        const assetSrc = artifacts[clueId];
-        const isFound = Boolean(discoveredClues?.[clueId]);
-        const dimensions = CLUE_DIMENSIONS[clueId];
-        const placement = ROOM_ARTIFACT_PLACEMENTS[clueId];
-        const triggerStyle = buildPlacementStyle(placement);
+        {OVERLAY_CLUE_IDS.map((clueId, index) => {
+          const assetSrc = artifacts[clueId];
+          const isFound = Boolean(discoveredClues?.[clueId]);
+          const isVisible = Boolean(visibleClues?.[clueId]);
+          const dimensions = CLUE_DIMENSIONS[clueId];
+          const placement = ROOM_ARTIFACT_PLACEMENTS[clueId];
+          const triggerStyle = buildPlacementStyle(placement);
+          const stepIndex = CLUE_ID_TO_INDEX[clueId];
+          const step = questSteps?.[stepIndex];
+          const glyph = CLUE_GLYPHS[clueId];
 
-        return (
-          <button
-            key={`${clueId}-${variantKey}`}
-            type="button"
-            className={`room-artifacts__trigger room-artifacts__trigger--${clueId} ${
-              isFound ? "room-artifacts__trigger--found" : ""
-            }`}
-            style={triggerStyle as CSSProperties}
-            onClick={() => onRevealClue?.(clueId)}
-            aria-pressed={isFound}
-            aria-label={CLUE_ARIA_LABEL[clueId]}
-            data-clue={clueId}
-          >
-            <Image
-              src={assetSrc}
-              alt={CLUE_ALT_TEXT[clueId]}
-              width={dimensions.width}
-              height={dimensions.height}
-              className="room-artifacts__asset"
-              priority={index === 0}
-            />
-            <span className="room-artifacts__spark" aria-hidden />
-          </button>
-        );
+          return (
+            <div
+              key={`${clueId}-${variantKey}`}
+              className={`room-artifacts__clue-zone room-artifacts__clue-zone--${clueId}`}
+              style={triggerStyle as CSSProperties}
+              data-clue={clueId}
+            >
+              <button
+                type="button"
+                className={`room-artifacts__trigger room-artifacts__trigger--${clueId} ${
+                  isFound ? "room-artifacts__trigger--found" : ""
+                }`}
+                onClick={() => onRevealClue?.(clueId)}
+                aria-pressed={isFound}
+                aria-label={CLUE_ARIA_LABEL[clueId]}
+              >
+                <Image
+                  src={assetSrc}
+                  alt={CLUE_ALT_TEXT[clueId]}
+                  width={dimensions.width}
+                  height={dimensions.height}
+                  className="room-artifacts__asset"
+                  priority={index === 0}
+                />
+                <span className="room-artifacts__spark" aria-hidden />
+              </button>
+
+              {isFound && step ? (
+                <div
+                  className={`clue-popup ${isVisible ? "clue-popup--visible" : ""} ${
+                    step.isComplete ? "clue-popup--solved" : ""
+                  }`}
+                  role="status"
+                  aria-live={isVisible ? "polite" : "off"}
+                  aria-hidden={isVisible ? undefined : true}
+                >
+                  <button
+                    type="button"
+                    className="clue-popup__close"
+                    onClick={() => onDismissClue?.(clueId)}
+                    aria-label={`Hide clue for ${step.label}`}
+                  >
+                    ×
+                  </button>
+                  <span className="clue-popup__glyph" aria-hidden>
+                    {glyph}
+                  </span>
+                  <p className="clue-popup__title">
+                    {step.isComplete ? step.label : "Encrypted Hint"}
+                  </p>
+                  <p className="clue-popup__body">{step.subtitle}</p>
+                </div>
+              ) : null}
+            </div>
+          );
         })}
 
         {STATIC_ARTIFACT_IDS.map((decorId) => {
@@ -202,19 +326,33 @@ export function RoomArtifacts({
         const style = buildPlacementStyle(placement);
         const isFrame = FRAME_IDS.includes(decorId as FrameId);
         const isLetter = decorId === "letter";
+  const isShelf = decorId === "shelf";
 
         if (isFrame) {
           const frameId = decorId as FrameId;
+          const frameClueId = FRAME_TO_CLUE[frameId];
+          const frameStepIndex = CLUE_ID_TO_INDEX[frameClueId];
+          const frameStep = questSteps?.[frameStepIndex];
+          const isFrameSolved = Boolean(frameStep?.isComplete);
+          const handleFrameClick = () => {
+            onRevealClue?.(frameClueId);
+            setActiveFrame(frameId);
+          };
+
           return (
             <button
               key={`${decorId}-${variantKey}`}
               type="button"
-              className={`room-artifacts__decor room-artifacts__decor--${decorId} room-artifacts__frame-button`}
+              className={`room-artifacts__decor room-artifacts__decor--${decorId} room-artifacts__frame-button ${
+                isFrameSolved ? "room-artifacts__frame-button--solved" : ""
+              }`}
               style={style}
-              onClick={() => setActiveFrame(frameId)}
+              onClick={handleFrameClick}
               aria-haspopup="dialog"
               aria-label={`Open ${decor.alt}`}
+              aria-pressed={Boolean(discoveredClues?.[frameClueId])}
               data-artifact={decorId}
+              data-clue={frameClueId}
             >
               <Image
                 src={decor.src}
@@ -226,7 +364,7 @@ export function RoomArtifacts({
               />
             </button>
           );
-          }
+        }
 
         if (isLetter) {
           if (!showBirthdayDecor || !isPresentOpened) {
@@ -241,6 +379,30 @@ export function RoomArtifacts({
               onClick={() => onOpenLetter?.()}
               aria-haspopup="dialog"
               aria-label="Read the café letter"
+              data-artifact={decorId}
+            >
+              <Image
+                src={decor.src}
+                alt={decor.alt}
+                width={decor.width}
+                height={decor.height}
+                className="room-artifacts__asset"
+                priority={false}
+              />
+            </button>
+          );
+        }
+
+        if (isShelf) {
+          return (
+            <button
+              key={`${decorId}-${variantKey}`}
+              type="button"
+              className={`room-artifacts__decor room-artifacts__decor--${decorId} room-artifacts__shelf-button`}
+              style={style}
+              onClick={() => onOpenRecipeBook?.()}
+              aria-haspopup="dialog"
+              aria-label="Open the recipe book"
               data-artifact={decorId}
             >
               <Image
@@ -281,6 +443,10 @@ export function RoomArtifacts({
           const isGift = decorId === "birthday-gift";
           const assetSrc = isGift && isPresentOpened ? "/room/birthday/Openned_Birthday.png" : decor.src;
           const assetAlt = isGift && isPresentOpened ? "Opened birthday gift revealing treats" : decor.alt;
+          const canClaimSurprise = Boolean(onClaimSurprise);
+          const showRewardPrompt =
+            isGift && showBirthdayDecor && canClaimSurprise && isSurpriseAvailable && !isSurpriseClaimed;
+          const shouldRenderGiftAsset = showBirthdayDecor;
           const commonProps = {
             width: decor.width,
             height: decor.height,
@@ -299,25 +465,88 @@ export function RoomArtifacts({
               aria-hidden={showBirthdayDecor ? undefined : true}
             >
               {isGift ? (
-                <button
-                  type="button"
-                  className="room-artifacts__party-button"
-                  onClick={() => setIsPresentOpened((previous) => !previous)}
-                  aria-pressed={isPresentOpened}
-                  aria-label={isPresentOpened ? "Close the birthday gift" : "Open the birthday gift"}
-                >
-                  <Image src={assetSrc} alt={assetAlt} {...commonProps} />
-                </button>
+                <>
+                  {shouldRenderGiftAsset ? (
+                    <button
+                      type="button"
+                      className="room-artifacts__party-button"
+                      onClick={() => setIsPresentOpened((previous) => !previous)}
+                      aria-pressed={isPresentOpened}
+                      aria-label={isPresentOpened ? "Close the birthday gift" : "Open the birthday gift"}
+                    >
+                      <Image src={assetSrc} alt={assetAlt} {...commonProps} />
+                    </button>
+                  ) : null}
+                  {showRewardPrompt ? (
+                    <button
+                      type="button"
+                      className="clue-popup clue-popup--visible clue-popup--reward"
+                      onClick={() => onClaimSurprise?.()}
+                      aria-label="Claim the birthday surprise treat"
+                    >
+                      <span className="clue-popup__glyph" aria-hidden>
+                        🎁
+                      </span>
+                      <p className="clue-popup__title">Hidden Parcel</p>
+                      <p className="clue-popup__body">Tap to tuck the confetti cake into inventory.</p>
+                    </button>
+                  ) : null}
+                </>
               ) : (
                 <Image src={assetSrc} alt={assetAlt} {...commonProps} />
               )}
             </div>
           );
         })}
+
+        {shouldRenderStatusPill ? (
+          <div
+            className="room-artifacts__ui room-artifacts__ui--status"
+            style={statusPillStyle}
+          >
+            <div className="clue-pill clue-pill--status" role="status" aria-live="polite">
+              <span className="clue-pill__glyph" aria-hidden>
+                🎉
+              </span>
+              <span className="clue-pill__label">Surprise Stored</span>
+              <span className="clue-pill__hint">Feed the cat to celebrate</span>
+              <button
+                type="button"
+                className="clue-pill__close"
+                onClick={() => setIsSurprisePillCollapsed(true)}
+                aria-label="Hide birthday surprise reminder"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {shouldRenderReturnPill ? (
+          <div
+            className="room-artifacts__ui room-artifacts__ui--return"
+            style={returnPillStyle}
+          >
+            <button
+              type="button"
+              className="clue-pill clue-pill--secondary"
+              onClick={onHideBirthdayDecor}
+              aria-label="Return the café to its usual decor"
+            >
+              <span aria-hidden>🕯️</span>
+              <span className="clue-pill__label">Return to cozy café</span>
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {activeFrame ? (
-        <FrameGalleryModal frameId={activeFrame} onClose={() => setActiveFrame(null)} />
+        <FrameGalleryModal
+          frameId={activeFrame}
+          onClose={() => setActiveFrame(null)}
+          isClueSolved={activeFrameSolved}
+          clueHint={activeFrameClueSubtitle}
+          solvedTreatName={activeFrameTreatName ?? undefined}
+        />
       ) : null}
     </>
   );

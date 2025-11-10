@@ -1,13 +1,10 @@
-export type RoomArtifactSet = {
-  window: string;
-  plant: string;
-  toy: string;
-};
+import type { OverlayClueId } from "@/data/mysteryClues";
+
+export type RoomArtifactSet = Record<OverlayClueId, string>;
 
 const BASE_ARTIFACT_SET: RoomArtifactSet = {
-  window: "/room/Clock.png",
   plant: "/room/Plant.png",
-  toy: "/room/Flag_crop.png",
+  window: "/room/Clock.png",
 };
 
 const ROOM_ARTIFACTS: Record<string, RoomArtifactSet> = {

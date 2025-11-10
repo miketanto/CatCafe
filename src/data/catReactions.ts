@@ -10,50 +10,110 @@ export const CAT_REACTIONS: Record<string, CatReaction> = {
   "Milky Tuna Tart": {
     mood: "happy",
     sprite: "/cats/happy.png",
-    message: "Purrfect combo!",
+    message: "This'll make me poop :o!",
   },
   "Honey Loaf": {
     mood: "sleepy",
     sprite: "/cats/sleepy.png",
-    message: "Sugar dreams~",
+    message: "Can we go nap nowww",
   },
   "Butternip Cookie": {
     mood: "playful",
     sprite: "/cats/playful.png",
-    message: "Catnip twirls ignite zoomies!",
+    message: "Blelelele",
   },
   "Honeyed Fish Bites": {
     mood: "happy",
     sprite: "/cats/happy.png",
-    message: "Sweet glaze plus fish flakes? Jubilant whisker wiggles!",
+    message: "Yummm I love sweet treats!",
   },
   "Fluffy Catnip Scones": {
     mood: "playful",
     sprite: "/cats/playful.png",
-    message: "The cat stacks scones like towers before pouncing them apart.",
+    message: "catch me if u cann",
+  },
+  "Catnip Cloud Crisps": {
+    mood: "playful",
+    sprite: "/cats/playful.png",
+    message: "Nom nom nom nom",
   },
   "Sweet Milkbread Twist": {
     mood: "sleepy",
     sprite: "/cats/sleepy.png",
-    message: "Warm carb lullaby achieved. Nap countdown engaged.",
+    message: "Zzz... so comfy...",
+  },
+  "Cream Puff Pastry": {
+    mood: "happy",
+    sprite: "/cats/happy.png",
+    message: "OH! Yumm :D",
+  },
+  "Golden Catnip Drops": {
+    mood: "playful",
+    sprite: "/cats/playful.png",
+    message: "Wow this glows like your skin :)",
+  },
+  "Savory Fish Crackers": {
+    mood: "happy",
+    sprite: "/cats/happy.png",
+    message: "umnom nom yum",
+  },
+  "Velvet Cream Cookies": {
+    mood: "sleepy",
+    sprite: "/cats/sleepy.png",
+    message: "Mmm... so soft.. make sleepy",
+  },
+  "Honey Butter Biscuits": {
+    mood: "happy",
+    sprite: "/cats/happy.png",
+    message: "*vigourously wiggles tongue*",
+  },
+  "Whisker Waffles": {
+    mood: "playful",
+    sprite: "/cats/playful.png",
+    message: "I'm going to beat you at watermelon with this",
+  },
+  "Golden Fish Pie": {
+    mood: "happy",
+    sprite: "/cats/happy.png",
+    message: "oooooh so goodd",
+  },
+  "Sweet Cream Muffins": {
+    mood: "happy",
+    sprite: "/cats/happy.png",
+    message: "yummy and creammy ;)",
+  },
+  "Golden Shortbread": {
+    mood: "happy",
+    sprite: "/cats/happy.png",
+    message: "RAHHHHHHH",
+  },
+  "Dreamy Catnip Custard": {
+    mood: "sleepy",
+    sprite: "/cats/sleepy.png",
+    message: "can you cuddle me while i sleep?",
   },
   "Birthday Surprise Cake": {
     mood: "happy",
     sprite: "/cats/happy.png",
-    message: "Confetti sneezes! It's party time in the café.",
+    message: "Sheng ri kuai le bao bei!!!",
+  },
+  "Mysterious Goo 🍯🐾": {
+    mood: "curious",
+    sprite: "/cats/curious.png",
+    message: "ughgughg...maybee something else",
   },
 };
 
 export const DEFAULT_CAT_REACTION: CatReaction = {
   mood: "curious",
   sprite: "/cats/curious.png",
-  message: "The cat tilts its head curiously.",
+  message: "hmm?",
 };
 
 export const IDLE_CAT_REACTION: CatReaction = {
   mood: "sleepy",
   sprite: "/cats/sleepy.png",
-  message: "The cat curls into a drowsy loaf.",
+  message: "bleh...zzzz...",
 };
 
 export function getReactionForTreat(treat: TreatRecipe | null): {

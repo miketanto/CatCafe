@@ -1,4 +1,4 @@
-import type { ClueId } from "@/data/mysteryClues";
+import type { OverlayClueId } from "@/data/mysteryClues";
 
 // Artifact placement coordinates rely on viewport units so new assets can be positioned quickly.
 export type ArtifactCoordinates = {
@@ -15,19 +15,7 @@ export type ArtifactPlacement = {
   large?: ArtifactCoordinates;
 };
 
-export const ROOM_ARTIFACT_PLACEMENTS: Record<ClueId, ArtifactPlacement> = {
-  window: {
-    base: {
-      top: "49vh",
-      right: "6vw",
-      width: "25vw",
-    },
-    large: {
-      top: "18vh",
-      right: "12vw",
-      width: "9vw",
-    },
-  },
+export const ROOM_ARTIFACT_PLACEMENTS: Record<OverlayClueId, ArtifactPlacement> = {
   plant: {
     base: {
       top: "35vh",
@@ -40,21 +28,21 @@ export const ROOM_ARTIFACT_PLACEMENTS: Record<ClueId, ArtifactPlacement> = {
       width: "12vw",
     },
   },
-  toy: {
+  window: {
     base: {
-      top: "8vh",
-      left: "10vw",
-      width: "15vw",
+      top: "49vh",
+      right: "6vw",
+      width: "25vw",
     },
     large: {
-      top: "12vh",
-      left: "20vw",
-      width: "18vw",
+      top: "18vh",
+      right: "12vw",
+      width: "9vw",
     },
   },
 };
 
-export type StaticArtifactId = "frame-1" | "frame-2" | "frame-3" | "letter" | "shelf";
+export type StaticArtifactId = "frame-1" | "frame-2" | "frame-3" | "letter" | "shelf" | "toy";
 
 export const STATIC_ARTIFACT_PLACEMENTS: Record<StaticArtifactId, ArtifactPlacement> = {
   "frame-1": {
@@ -95,14 +83,14 @@ export const STATIC_ARTIFACT_PLACEMENTS: Record<StaticArtifactId, ArtifactPlacem
   },
   letter: {
     base: {
-      bottom: "34vh",
+      bottom: "40vh",
       right: "68vw",
-      width: "23vw",
+      width: "26vw",
     },
     large: {
-      bottom: "24vh",
+      bottom: "30vh",
       right: "30vw",
-      width: "10vw",
+      width: "12vw",
     },
   },
   shelf: {
@@ -115,6 +103,18 @@ export const STATIC_ARTIFACT_PLACEMENTS: Record<StaticArtifactId, ArtifactPlacem
       top: "25vh",
       left: "50vw",
       width: "14vw",
+    },
+  },
+  toy: {
+    base: {
+      top: "8vh",
+      left: "10vw",
+      width: "15vw",
+    },
+    large: {
+      top: "12vh",
+      left: "20vw",
+      width: "18vw",
     },
   },
 };
@@ -159,6 +159,31 @@ export const BIRTHDAY_ARTIFACT_PLACEMENTS: Record<BirthdayArtifactId, ArtifactPl
       bottom: "26vh",
       left: "18vw",
       width: "11vw",
+    },
+  },
+};
+
+export type BirthdayUiId = "birthday-status-pill" | "birthday-return-pill";
+
+export const BIRTHDAY_UI_PLACEMENTS: Record<BirthdayUiId, ArtifactPlacement> = {
+  "birthday-status-pill": {
+    base: {
+      top: "10vh",
+      right: "20vw",
+    },
+    large: {
+      top: "10vh",
+      right: "20vw",
+    },
+  },
+  "birthday-return-pill": {
+    base: {
+      top: "18vh",
+      right: "20vw",
+    },
+    large: {
+      top: "18vh",
+      right: "20vw",
     },
   },
 };

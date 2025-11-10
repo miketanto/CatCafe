@@ -4,8 +4,8 @@ import { INVENTORY_DRAG_KEY } from "@/lib/inventoryDrag";
 import { RoomArtifacts } from "@/components/RoomArtifacts";
 import type { ClueId } from "@/data/mysteryClues";
 import { CAT_REACTIONS } from "@/data/catReactions";
+import type { QuestStatusStep } from "@/context/QuestContext";
 
-const PARTY_CAT_SPRITE = "/cats/Happy_Bday.png";
 
 type CatDisplayProps = {
   onDropTreat: (inventoryId: string) => void;
@@ -15,8 +15,16 @@ type CatDisplayProps = {
   animationKey: number;
   onRevealClue?: (clueId: ClueId) => void;
   discoveredClues?: Partial<Record<ClueId, boolean>>;
+  visibleClues?: Partial<Record<ClueId, boolean>>;
+  onDismissClue?: (clueId: ClueId) => void;
+  questSteps?: QuestStatusStep[];
+  isSurpriseAvailable?: boolean;
+  isSurpriseClaimed?: boolean;
+  onClaimSurprise?: () => void;
   showBirthdayDecor: boolean;
+  onHideBirthdayDecor?: () => void;
   onOpenLetter: () => void;
+  onOpenRecipeBook: () => void;
   onPet: () => void;
 };
 
@@ -29,8 +37,16 @@ export function CatDisplay({
   animationKey,
   onRevealClue,
   discoveredClues,
+  visibleClues,
+  onDismissClue,
+  questSteps,
+  isSurpriseAvailable,
+  isSurpriseClaimed,
+  onClaimSurprise,
   showBirthdayDecor,
+  onHideBirthdayDecor,
   onOpenLetter,
+  onOpenRecipeBook,
   onPet,
 }: CatDisplayProps) {
   const [isDropActive, setIsDropActive] = useState(false);
@@ -103,7 +119,7 @@ export function CatDisplay({
   };
 
   const isPartyActive = showBirthdayDecor;
-  const displaySprite = isPartyActive ? PARTY_CAT_SPRITE : spriteSrc;
+  const displaySprite = spriteSrc;
   const spriteAlt = isPartyActive ? "Cat celebrating with a birthday cupcake" : `Cat feeling ${mood}`;
 
   return (
@@ -122,8 +138,16 @@ export function CatDisplay({
           animationKey={animationKey}
           onRevealClue={onRevealClue}
           discoveredClues={discoveredClues}
+          visibleClues={visibleClues}
+          onDismissClue={onDismissClue}
+          questSteps={questSteps}
+          isSurpriseAvailable={isSurpriseAvailable}
+          isSurpriseClaimed={isSurpriseClaimed}
+          onClaimSurprise={onClaimSurprise}
           showBirthdayDecor={showBirthdayDecor}
+          onHideBirthdayDecor={onHideBirthdayDecor}
           onOpenLetter={onOpenLetter}
+          onOpenRecipeBook={onOpenRecipeBook}
         />
         <div
           className={`cat-habitat__frame ${
