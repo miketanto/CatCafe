@@ -1334,8 +1334,10 @@ button:focus-visible,
   left: var(--artifact-left, auto);
   width: var(--artifact-width, auto);
   height: var(--artifact-height, auto);
-  pointer-events: none;
+  pointer-events: auto;
 }
+
+
 
 .room-artifacts__trigger {
   position: relative;
