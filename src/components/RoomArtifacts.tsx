@@ -22,6 +22,7 @@ import { FrameGalleryModal } from "@/components/FrameGalleryModal";
 import { FRAME_IDS, type FrameId } from "@/data/frameGalleries";
 import type { QuestStatusStep } from "@/context/QuestContext";
 import { getTreatByKey } from "@/data/treatRecipes";
+import { OverlayClueModal } from "@/components/OverlayClueModal";
 
 type RoomArtifactsProps = {
   mood: string;
@@ -194,6 +195,7 @@ export function RoomArtifacts({
     .filter((value): value is string => Boolean(value))
     .join(" ");
   const [activeFrame, setActiveFrame] = useState<FrameId | null>(null);
+  const [activeOverlayClue, setActiveOverlayClue] = useState<OverlayClueId | null>(null);
   const [isPresentOpened, setIsPresentOpened] = useState(false);
   const [isSurprisePillCollapsed, setIsSurprisePillCollapsed] = useState(false);
   const isQuestComplete = useMemo(
@@ -230,6 +232,17 @@ export function RoomArtifacts({
     }
   }, [showBirthdayDecor]);
 
+  useEffect(() => {
+    if (!visibleClues) {
+      return;
+    }
+
+    const nextOverlayClue = OVERLAY_CLUE_IDS.find((clueId) => visibleClues[clueId]);
+    if (nextOverlayClue) {
+      setActiveOverlayClue((previous) => (previous === nextOverlayClue ? previous : nextOverlayClue));
+    }
+  }, [visibleClues]);
+
   const activeFrameClueId: FrameClueId | null = activeFrame ? FRAME_TO_CLUE[activeFrame] : null;
   const activeFrameStep = activeFrameClueId
     ? questSteps?.[CLUE_ID_TO_INDEX[activeFrameClueId]]
@@ -255,13 +268,15 @@ export function RoomArtifacts({
         {OVERLAY_CLUE_IDS.map((clueId, index) => {
           const assetSrc = artifacts[clueId];
           const isFound = Boolean(discoveredClues?.[clueId]);
-          const isVisible = Boolean(visibleClues?.[clueId]);
           const dimensions = CLUE_DIMENSIONS[clueId];
           const placement = ROOM_ARTIFACT_PLACEMENTS[clueId];
           const triggerStyle = buildPlacementStyle(placement);
-          const stepIndex = CLUE_ID_TO_INDEX[clueId];
-          const step = questSteps?.[stepIndex];
-          const glyph = CLUE_GLYPHS[clueId];
+          const isActive = activeOverlayClue === clueId;
+
+          const handleClueTrigger = () => {
+            onRevealClue?.(clueId);
+            setActiveOverlayClue(clueId);
+          };
 
           return (
             <div
@@ -275,9 +290,11 @@ export function RoomArtifacts({
                 className={`room-artifacts__trigger room-artifacts__trigger--${clueId} ${
                   isFound ? "room-artifacts__trigger--found" : ""
                 }`}
-                onClick={() => onRevealClue?.(clueId)}
+                onClick={handleClueTrigger}
                 aria-pressed={isFound}
                 aria-label={CLUE_ARIA_LABEL[clueId]}
+                aria-haspopup="dialog"
+                data-active={isActive || undefined}
               >
                 <Image
                   src={assetSrc}
@@ -289,133 +306,106 @@ export function RoomArtifacts({
                 />
                 <span className="room-artifacts__spark" aria-hidden />
               </button>
-
-              {isFound && step ? (
-                <div
-                  className={`clue-popup ${isVisible ? "clue-popup--visible" : ""} ${
-                    step.isComplete ? "clue-popup--solved" : ""
-                  }`}
-                  role="status"
-                  aria-live={isVisible ? "polite" : "off"}
-                  aria-hidden={isVisible ? undefined : true}
-                >
-                  <button
-                    type="button"
-                    className="clue-popup__close"
-                    onClick={() => onDismissClue?.(clueId)}
-                    aria-label={`Hide clue for ${step.label}`}
-                  >
-                    ×
-                  </button>
-                  <span className="clue-popup__glyph" aria-hidden>
-                    {glyph}
-                  </span>
-                  <p className="clue-popup__title">
-                    {step.isComplete ? step.label : "Encrypted Hint"}
-                  </p>
-                  <p className="clue-popup__body">{step.subtitle}</p>
-                </div>
-              ) : null}
             </div>
           );
         })}
 
         {STATIC_ARTIFACT_IDS.map((decorId) => {
-        const decor = STATIC_DECOR[decorId];
-        const placement = STATIC_ARTIFACT_PLACEMENTS[decorId];
-        const style = buildPlacementStyle(placement);
-        const isFrame = FRAME_IDS.includes(decorId as FrameId);
-        const isLetter = decorId === "letter";
-  const isShelf = decorId === "shelf";
+          const decor = STATIC_DECOR[decorId];
+          const placement = STATIC_ARTIFACT_PLACEMENTS[decorId];
+          const style = buildPlacementStyle(placement);
+          const isFrame = FRAME_IDS.includes(decorId as FrameId);
+          const isLetter = decorId === "letter";
+          const isShelf = decorId === "shelf";
 
-        if (isFrame) {
-          const frameId = decorId as FrameId;
-          const frameClueId = FRAME_TO_CLUE[frameId];
-          const frameStepIndex = CLUE_ID_TO_INDEX[frameClueId];
-          const frameStep = questSteps?.[frameStepIndex];
-          const isFrameSolved = Boolean(frameStep?.isComplete);
-          const handleFrameClick = () => {
-            onRevealClue?.(frameClueId);
-            setActiveFrame(frameId);
-          };
+          if (isFrame) {
+            const frameId = decorId as FrameId;
+            const frameClueId = FRAME_TO_CLUE[frameId];
+            const frameStepIndex = CLUE_ID_TO_INDEX[frameClueId];
+            const frameStep = questSteps?.[frameStepIndex];
+            const isFrameSolved = Boolean(frameStep?.isComplete);
+            const handleFrameClick = () => {
+              onRevealClue?.(frameClueId);
+              setActiveFrame(frameId);
+            };
 
-          return (
-            <button
-              key={`${decorId}-${variantKey}`}
-              type="button"
-              className={`room-artifacts__decor room-artifacts__decor--${decorId} room-artifacts__frame-button ${
-                isFrameSolved ? "room-artifacts__frame-button--solved" : ""
-              }`}
-              style={style}
-              onClick={handleFrameClick}
-              aria-haspopup="dialog"
-              aria-label={`Open ${decor.alt}`}
-              aria-pressed={Boolean(discoveredClues?.[frameClueId])}
-              data-artifact={decorId}
-              data-clue={frameClueId}
-            >
-              <Image
-                src={decor.src}
-                alt={decor.alt}
-                width={decor.width}
-                height={decor.height}
-                className="room-artifacts__asset"
-                priority={false}
-              />
-            </button>
-          );
-        }
-
-        if (isLetter) {
-          if (!showBirthdayDecor || !isPresentOpened) {
-            return null;
+            return (
+              <button
+                key={`${decorId}-${variantKey}`}
+                type="button"
+                className={`room-artifacts__decor room-artifacts__decor--${decorId} room-artifacts__frame-button ${
+                  isFrameSolved ? "room-artifacts__frame-button--solved" : ""
+                }`}
+                style={style}
+                onClick={handleFrameClick}
+                aria-haspopup="dialog"
+                aria-label={`Open ${decor.alt}`}
+                aria-pressed={Boolean(discoveredClues?.[frameClueId])}
+                data-artifact={decorId}
+                data-clue={frameClueId}
+              >
+                <Image
+                  src={decor.src}
+                  alt={decor.alt}
+                  width={decor.width}
+                  height={decor.height}
+                  className="room-artifacts__asset"
+                  priority={false}
+                />
+              </button>
+            );
           }
-          return (
-            <button
-              key={`${decorId}-${variantKey}`}
-              type="button"
-              className={`room-artifacts__decor room-artifacts__decor--${decorId} room-artifacts__letter-button`}
-              style={style}
-              onClick={() => onOpenLetter?.()}
-              aria-haspopup="dialog"
-              aria-label="Read the café letter"
-              data-artifact={decorId}
-            >
-              <Image
-                src={decor.src}
-                alt={decor.alt}
-                width={decor.width}
-                height={decor.height}
-                className="room-artifacts__asset"
-                priority={false}
-              />
-            </button>
-          );
-        }
 
-        if (isShelf) {
-          return (
-            <button
-              key={`${decorId}-${variantKey}`}
-              type="button"
-              className={`room-artifacts__decor room-artifacts__decor--${decorId} room-artifacts__shelf-button`}
-              style={style}
-              onClick={() => onOpenRecipeBook?.()}
-              aria-haspopup="dialog"
-              aria-label="Open the recipe book"
-              data-artifact={decorId}
-            >
-              <Image
-                src={decor.src}
-                alt={decor.alt}
-                width={decor.width}
-                height={decor.height}
-                className="room-artifacts__asset"
-                priority={false}
-              />
-            </button>
-          );
-        }
+          if (isLetter) {
+            if (!showBirthdayDecor || !isPresentOpened) {
+              return null;
+            }
+            return (
+              <button
+                key={`${decorId}-${variantKey}`}
+                type="button"
+                className={`room-artifacts__decor room-artifacts__decor--${decorId} room-artifacts__letter-button`}
+                style={style}
+                onClick={() => onOpenLetter?.()}
+                aria-haspopup="dialog"
+                aria-label="Read the café letter"
+                data-artifact={decorId}
+              >
+                <Image
+                  src={decor.src}
+                  alt={decor.alt}
+                  width={decor.width}
+                  height={decor.height}
+                  className="room-artifacts__asset"
+                  priority={false}
+                />
+              </button>
+            );
+          }
+
+          if (isShelf) {
+            return (
+              <button
+                key={`${decorId}-${variantKey}`}
+                type="button"
+                className={`room-artifacts__decor room-artifacts__decor--${decorId} room-artifacts__shelf-button`}
+                style={style}
+                onClick={() => onOpenRecipeBook?.()}
+                aria-haspopup="dialog"
+                aria-label="Open the recipe book"
+                data-artifact={decorId}
+              >
+                <Image
+                  src={decor.src}
+                  alt={decor.alt}
+                  width={decor.width}
+                  height={decor.height}
+                  className="room-artifacts__asset"
+                  priority={false}
+                />
+              </button>
+            );
+          }
 
         return (
           <div
@@ -546,6 +536,17 @@ export function RoomArtifacts({
           isClueSolved={activeFrameSolved}
           clueHint={activeFrameClueSubtitle}
           solvedTreatName={activeFrameTreatName ?? undefined}
+        />
+      ) : null}
+      {activeOverlayClue ? (
+        <OverlayClueModal
+          clueId={activeOverlayClue}
+          glyph={CLUE_GLYPHS[activeOverlayClue]}
+          step={questSteps?.[CLUE_ID_TO_INDEX[activeOverlayClue]]}
+          onClose={() => {
+            onDismissClue?.(activeOverlayClue);
+            setActiveOverlayClue(null);
+          }}
         />
       ) : null}
     </>
