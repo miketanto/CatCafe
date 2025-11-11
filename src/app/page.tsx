@@ -402,7 +402,7 @@ export default function Home() {
             </p>
           </>
         }
-        footerNote="With fondness, The Midnight Courier"
+        footerNote="lots of love, ur pookie <3"
       />
       <EntryOverlay
         isOpen={showEntryOverlay}
